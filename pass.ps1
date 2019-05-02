@@ -3,7 +3,8 @@ $pwStore = Get-Item '~/.password-store/' -Force
 # Populate password files for tab completion in Pass-Show and Pass-Edit.
 class ValidFilesGenerator : System.Management.Automation.IValidateSetValuesGenerator {
     [string[]] GetValidValues() {
-		$values = Get-ChildItem -Path $script:pwStore -Recurse -File -Filter '*.gpg' | Foreach-Object {$_.FullName -replace "$([regex]::escape($script:pwStore))" -replace '\.gpg$'}
+		$values = Get-ChildItem -Path $script:pwStore -Recurse -File -Filter '*.gpg' `
+			| Foreach-Object {$_.FullName -replace "$([regex]::escape($script:pwStore))" -replace '\.gpg$'}
 		return $values
     }
 }
@@ -20,7 +21,8 @@ function Pass-Show {
 		$showArgs
 	)
 	
-	Start-Process -FilePath 'gpg' -ArgumentList "--decrypt ${showArgs}.gpg" -WorkingDirectory "$pwStore" -NoNewWindow -Wait
+	Start-Process -FilePath 'gpg' -ArgumentList "--decrypt ${showArgs}.gpg" `
+		-WorkingDirectory "$pwStore" -NoNewWindow -Wait
 }
 
 # Wrap some basic git functionality.
@@ -32,7 +34,8 @@ function Pass-Git {
 		$gitArgs
 	)
 
-	Start-Process -FilePath 'git' -ArgumentList "$gitArgs" -WorkingDirectory "$pwStore" -NoNewWindow -Wait
+	Start-Process -FilePath 'git' -ArgumentList "$gitArgs" -WorkingDirectory "$pwStore" `
+		-NoNewWindow -Wait
 }
 
 # Search through filenames.
@@ -75,7 +78,8 @@ function Pass-Edit {
 	# Get GPG ID.
 	$gpgid = Get-Content -Path "$pwStore/.gpg-id"
 	# Create decrypted copy of password file.
-	Start-Process -FilePath 'gpg' -ArgumentList "--decrypt --output $tmpFile --quiet --yes ${editArgs}.gpg" -WorkingDirectory "$pwStore" -NoNewWindow -Wait
+	Start-Process -FilePath 'gpg' -ArgumentList "--decrypt --output $tmpFile --quiet --yes `
+		${editArgs}.gpg" -WorkingDirectory "$pwStore" -NoNewWindow -Wait
 	# Get hash of file to detect changes.
 	$oldHash = Get-FileHash -Path $tmpFile
 	# Open file in default editor, wait for editor to exit.
@@ -86,9 +90,11 @@ function Pass-Edit {
 	# Detect if file has changed.
 	if ($oldHash.Hash -notmatch $newHash.Hash) {
 		# Encrypt updated text file, overwriting previous passfile entry.
-		Start-Process -FilePath 'gpg' -ArgumentList "--encrypt --output ${editArgs}.gpg --recipient ""$gpgid"" --quiet --yes $tmpFile" -WorkingDirectory "$pwStore" -NoNewWindow -Wait
+		Start-Process -FilePath 'gpg' -ArgumentList "--encrypt --output ${editArgs}.gpg `
+		--recipient ""$gpgid"" --quiet --yes $tmpFile" -WorkingDirectory "$pwStore" -NoNewWindow -Wait
 		# TODO commit to git.
-		Start-Process -FilePath 'git' -ArgumentList "commit ${editArgs}.gpg -m ""updated $editArgs""" -WorkingDirectory "$pwStore" -NoNewWindow -Wait
+		Start-Process -FilePath 'git' -ArgumentList "commit ${editArgs}.gpg -m ""updated $editArgs""" `
+			-WorkingDirectory "$pwStore" -NoNewWindow -Wait
 	} Else {
 		Write-Host 'No changes made.'
 	}
