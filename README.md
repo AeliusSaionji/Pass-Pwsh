@@ -19,3 +19,7 @@ Yes. Probably. Maybe even easily. Not a high priority for me to extend support b
 Passwords will be edited with whatever your system uses to open `.txt` files.
 
 Unfortunately there's a problem you should be aware of. At the moment, I simply decrypt the password file to `$ENV:TEMP\Pass\<file>.txt`. This is how the official `pass` client works, but on Linux `/tmp` never touches your disk so files within it do not need to be securely deleted. Windows is a different beast. For now, the solution I have come up with is to overwrite the plaintext file with junk data before deleting it. In future versions I'll support Standard Input/Output streams. Other suggestions welcome.
+
+## Why are the functions in Noun-Verb form? Why doesn't it just work like the original `pass`?
+
+Because PowerShell will make make your life miserable if you don't do things its way. I tried. I did. Well, I guess I am here to do things `The Windows Way` after all...
