@@ -25,6 +25,57 @@ function Pass-Show {
 		-WorkingDirectory "$pwStore" -NoNewWindow -Wait
 }
 
+function Pass-Move {
+	param(
+		[Parameter(ParameterSetName = 'Move', Mandatory, Position = 0)]
+		[ValidateSet( [ValidFilesGenerator] )]
+		[string]
+		$mvFromArgs,
+
+		[Parameter(ParameterSetName = 'Move', Mandatory, Position = 1)]
+		[string]
+		$mvToArgs
+
+	)
+	
+	Start-Process -FilePath 'git' -ArgumentList "mv ${mvFromArgs}.gpg ${mvToArgs}.gpg" `
+		-WorkingDirectory "$pwStore" -NoNewWindow -Wait
+	_pass-git-commit "$mvToArgs" 'moved' "$mvFromArgs"
+}
+
+function Pass-Copy {
+	param(
+		[Parameter(ParameterSetName = 'Copy', Mandatory, Position = 0)]
+		[ValidateSet( [ValidFilesGenerator] )]
+		[string]
+		$cpFromArgs,
+
+		[Parameter(ParameterSetName = 'Copy', Mandatory, Position = 1)]
+		[string]
+		$cpToArgs
+	)
+	
+	$cpFromPath = Join-Path -Path $pwStore -ChildPath $cpFromArgs
+	$cpToPath = Join-Path -Path $pwStore -ChildPath $cpToArgs
+	Copy-Item -Path "${cpFromPath}.gpg" -Destination "${cpToPath}.gpg"
+	Start-Process -FilePath 'git' -ArgumentList "add ${cpToPath}.gpg" `
+		-WorkingDirectory "$pwStore" -NoNewWindow -Wait
+	_pass-git-commit "$cpToArgs" 'copied' "$cpFromArgs"
+}
+
+function Pass-Remove {
+	param(
+		[Parameter(ParameterSetName = 'Remove', Mandatory, Position = 0)]
+		[ValidateSet( [ValidFilesGenerator] )]
+		[string]
+		$rmArgs
+	)
+	
+	Start-Process -FilePath 'git' -ArgumentList "rm ${rmArgs}.gpg" `
+		-WorkingDirectory "$pwStore" -NoNewWindow -Wait
+	_pass-git-commit "$rmArgs" 'removed'
+}
+
 # Wrap some basic git functionality.
 function Pass-Git {
 	param(
@@ -72,7 +123,7 @@ function Pass-Edit {
 	# Define temporary output file.
 	New-Item -Name 'Pass' -Path $ENV:TEMP -ItemType Directory -ErrorAction:Ignore | Out-Null
 	$rndNum = Get-Random -Minimum 1000 -Maximum 10000
-	$dePath = $editArgs -replace '\\','.'
+	$dePath = $editArgs -replace '[\\/]','.'
 	$tmpFile = "$ENV:TEMP/Pass/${dePath}.${rndNum}.txt"	
 	#$tmpFile = New-TemporaryFile # If we use this, need to change edit method.
 	# Get GPG ID.
@@ -92,9 +143,10 @@ function Pass-Edit {
 		# Encrypt updated text file, overwriting previous passfile entry.
 		Start-Process -FilePath 'gpg' -ArgumentList "--encrypt --output ${editArgs}.gpg `
 		--recipient ""$gpgid"" --quiet --yes $tmpFile" -WorkingDirectory "$pwStore" -NoNewWindow -Wait
-		# TODO commit to git.
-		Start-Process -FilePath 'git' -ArgumentList "commit ${editArgs}.gpg -m ""updated $editArgs""" `
-			-WorkingDirectory "$pwStore" -NoNewWindow -Wait
+		# Commit to git.
+		_pass-git-commit "$editArgs" 'edited'
+		#Start-Process -FilePath 'git' -ArgumentList "commit ${editArgs}.gpg -m ""updated $editArgs""" `
+			#-WorkingDirectory "$pwStore" -NoNewWindow -Wait
 	} Else {
 		Write-Host 'No changes made.'
 	}
@@ -102,4 +154,31 @@ function Pass-Edit {
 	# Overwrite file.
 	Set-Content -Value $rndNum -Path $tmpFile
 	Remove-Item $tmpFile
+}
+
+function script:_pass-git-commit {
+	param(
+		[Parameter(ParameterSetName = 'gitcommit', Mandatory, Position = 0)]
+		[string]
+		$fileArgs,
+
+		[Parameter(ParameterSetName = 'gitcommit', Mandatory, Position = 1)]
+		[ValidateSet('edited','copied','moved','removed')]
+		[string]
+		$actionArgs,
+
+		[Parameter(ParameterSetName = 'gitcommit', Position = 2)]
+		[string]
+		$supplimentalFileArgs
+	)
+
+	# Commit to git.
+	# If moving or copying, include origin and destination.
+	if ($supplimentalFileArgs) {
+		Start-Process -FilePath 'git' -ArgumentList "commit ${fileArgs}.gpg -m ""$supplimentalFileArgs $actionArgs to $fileArgs""" `
+			-WorkingDirectory "$pwStore" -NoNewWindow -Wait
+	} else {
+		Start-Process -FilePath 'git' -ArgumentList "commit ${fileArgs}.gpg -m ""$actionArgs $fileArgs""" `
+			-WorkingDirectory "$pwStore" -NoNewWindow -Wait
+	}
 }
