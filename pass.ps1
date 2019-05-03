@@ -35,7 +35,6 @@ function Pass-Move {
 		[Parameter(ParameterSetName = 'Move', Mandatory, Position = 1)]
 		[string]
 		$mvToArgs
-
 	)
 	
 	Start-Process -FilePath 'git' -ArgumentList "mv ${mvFromArgs}.gpg ${mvToArgs}.gpg" `
@@ -145,8 +144,6 @@ function Pass-Edit {
 		--recipient ""$gpgid"" --quiet --yes $tmpFile" -WorkingDirectory "$pwStore" -NoNewWindow -Wait
 		# Commit to git.
 		_pass-git-commit "$editArgs" 'edited'
-		#Start-Process -FilePath 'git' -ArgumentList "commit ${editArgs}.gpg -m ""updated $editArgs""" `
-			#-WorkingDirectory "$pwStore" -NoNewWindow -Wait
 	} Else {
 		Write-Host 'No changes made.'
 	}
@@ -173,9 +170,10 @@ function script:_pass-git-commit {
 	)
 
 	# Commit to git.
-	# If moving or copying, include origin and destination.
+	# If moving or copying, include origin and destination. For moving, we need to commit the "deleted" file.
+	# TODO don't commit the origin file if copying?
 	if ($supplimentalFileArgs) {
-		Start-Process -FilePath 'git' -ArgumentList "commit ${fileArgs}.gpg -m ""$supplimentalFileArgs $actionArgs to $fileArgs""" `
+		Start-Process -FilePath 'git' -ArgumentList "commit ${fileArgs}.gpg $supplimentalFileArgs.gpg -m ""$supplimentalFileArgs $actionArgs to $fileArgs""" `
 			-WorkingDirectory "$pwStore" -NoNewWindow -Wait
 	} else {
 		Start-Process -FilePath 'git' -ArgumentList "commit ${fileArgs}.gpg -m ""$actionArgs $fileArgs""" `
