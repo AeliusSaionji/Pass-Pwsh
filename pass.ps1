@@ -123,13 +123,14 @@ function Pass-Edit {
 	New-Item -Name 'Pass' -Path $ENV:TEMP -ItemType Directory -ErrorAction:Ignore | Out-Null
 	$rndNum = Get-Random -Minimum 1000 -Maximum 10000
 	$dePath = $editArgs -replace '[\\/]','.'
-	$tmpFile = "$ENV:TEMP/Pass/${dePath}.${rndNum}.txt"	
+	$tmpFile = Join-Path "$env:TEMP" 'Pass' "${dePath}.${rndNum}.txt"
 	#$tmpFile = New-TemporaryFile # If we use this, need to change edit method.
 	# Get GPG ID.
 	$gpgid = Get-Content -Path "$pwStore/.gpg-id"
 	# Create decrypted copy of password file.
-	Start-Process -FilePath 'gpg' -ArgumentList "--decrypt --output $tmpFile --quiet --yes `
-		${editArgs}.gpg" -WorkingDirectory "$pwStore" -NoNewWindow -Wait
+	Start-Process -FilePath 'gpg' `
+	-ArgumentList "--decrypt --output $tmpFile --quiet --yes ${editArgs}.gpg" `
+	-WorkingDirectory "$pwStore" -NoNewWindow -Wait
 	# Get hash of file to detect changes.
 	$oldHash = Get-FileHash -Path $tmpFile
 	# Open file in default editor, wait for editor to exit.
@@ -140,8 +141,9 @@ function Pass-Edit {
 	# Detect if file has changed.
 	if ($oldHash.Hash -notmatch $newHash.Hash) {
 		# Encrypt updated text file, overwriting previous passfile entry.
-		Start-Process -FilePath 'gpg' -ArgumentList "--encrypt --output ${editArgs}.gpg `
-		--recipient ""$gpgid"" --quiet --yes $tmpFile" -WorkingDirectory "$pwStore" -NoNewWindow -Wait
+		Start-Process -FilePath 'gpg' `
+		-ArgumentList "--encrypt --output ${editArgs}.gpg --recipient ""$gpgid"" --quiet --yes $tmpFile" `
+		-WorkingDirectory "$pwStore" -NoNewWindow -Wait
 		# Commit to git.
 		_pass-git-commit "$editArgs" 'edited'
 	} Else {
